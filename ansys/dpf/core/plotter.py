@@ -697,9 +697,11 @@ class Plotter:
             mesh_location = mesh.nodes
         elif location == locations.elemental:
             mesh_location = mesh.elements
+        elif location == locations.elemental_nodal:
+            mesh_location = mesh.elements
         else:
             raise ValueError(
-                "Only elemental or nodal location are supported for plotting."
+                "Only elemental, elemental nodal or nodal location are supported for plotting."
             )
 
         # pre-loop: check if shell layers for each field, if yes, set the shell layers
