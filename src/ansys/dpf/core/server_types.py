@@ -673,15 +673,20 @@ class GrpcServer(CServer):
         # Load DPFClientAPI
         from ansys.dpf.core.misc import is_pypim_configured
 
-        super().__init__(ansys_path=ansys_path, load_operators=load_operators)
-        # Load Ans.Dpf.GrpcClient
-        self._grpc_client_path = load_api.load_grpc_client(ansys_path=ansys_path)
         self._own_process = launch_server
         self._local_server = False
         self._os = None
         self._version = None
 
+        super().__init__(ansys_path=ansys_path, load_operators=load_operators)
+        # Load Ans.Dpf.GrpcClient
+        self._grpc_client_path = load_api.load_grpc_client(ansys_path=ansys_path)
+
         address = f"{ip}:{port}"
+        # store port and ip for later reference
+        self._address = address
+        self._input_ip = ip
+        self._input_port = port
 
         self._remote_instance = None
         if launch_server:
@@ -695,6 +700,9 @@ class GrpcServer(CServer):
                 address = self._remote_instance.services["grpc"].uri
                 ip = address.split(":")[-2]
                 port = int(address.split(":")[-1])
+                self._address = address
+                self._input_ip = ip
+                self._input_port = port
 
             elif docker_config.use_docker:
                 self.docker_config = server_factory.RunningDockerConfig(docker_config)
@@ -709,12 +717,8 @@ class GrpcServer(CServer):
                 launch_dpf(ansys_path, ip, port, timeout=timeout)
                 self._local_server = True
 
-        self._client = GrpcClient(address)
-        # store port and ip for later reference
-        self._address = address
-        self._input_ip = ip
-        self._input_port = port
         self.live = True
+        self._client = GrpcClient(address)
         self._create_shutdown_funcs()
         self._check_first_call(num_connection_tryouts)
         try:
@@ -1005,12 +1009,12 @@ class LegacyGrpcServer(BaseServer):
         # Use ansys.grpc.dpf
         from ansys.dpf.core.misc import is_pypim_configured
 
-        super().__init__()
-
         self._info_instance = None
         self._own_process = launch_server
         self.live = False
         self._local_server = False
+
+        super().__init__()
 
         # Load Ans.Dpf.Grpc?
         import grpc
@@ -1021,6 +1025,12 @@ class LegacyGrpcServer(BaseServer):
             raise ValueError("Port must be an integer")
 
         address = f"{ip}:{port}"
+        # store the address for later reference
+        self._address = address
+        self._input_ip = ip
+        self._input_port = port
+        self.ansys_path = ansys_path
+        self._stubs = {}
 
         self._remote_instance = None
         if launch_server:
@@ -1032,8 +1042,11 @@ class LegacyGrpcServer(BaseServer):
             ):
                 self._remote_instance = launch_remote_dpf()
                 address = self._remote_instance.services["grpc"].uri
+                self._address = address
                 ip = address.split(":")[-2]
                 port = int(address.split(":")[-1])
+                self._input_ip = ip
+                self._input_port = port
             else:
 
                 if docker_config.use_docker:
@@ -1048,16 +1061,9 @@ class LegacyGrpcServer(BaseServer):
                 else:
                     launch_dpf(ansys_path, ip, port, timeout=timeout)
                     self._local_server = True
+        self.live = True
 
         self.channel = grpc.insecure_channel(address)
-
-        # store the address for later reference
-        self._address = address
-        self._input_ip = ip
-        self._input_port = port
-        self.live = True
-        self.ansys_path = ansys_path
-        self._stubs = {}
 
         self._create_shutdown_funcs()
 
