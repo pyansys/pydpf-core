@@ -16,7 +16,7 @@ body:
       label: Before submitting the issue
       description: Please, make sure the following conditions are met
       options:
-      - label: I have checked for [Compatibility](https://dpfdocs.pyansys.com/getting_started/index.html#compatibility) issues
+      - label: I have checked for [Compatibility](https://dpf.docs.pyansys.com/version/stable/getting_started/compatibility.html#id1) issues
         required: true
       - label: I have searched among the existing issues
         required: true
@@ -46,26 +46,52 @@ body:
   - type: dropdown
     id: os-name
     attributes:
-      label: Which Operating System are you using?
-      multiple: false
+      label: Which Operating System causes the issue?
+      multiple: true
       options:
        - 'Windows'
        - 'MacOS'
        - 'Linux'
     validations:
       required: true
+   
+  - type: dropdown
+    id: dpf-server-version
+    attributes:
+      label: Which DPF/Ansys version are you using?
+      multiple: true
+      options:
+       - 'DPF Server 2025.1.pre0'
+       - 'Ansys 2024 R2'
+       - 'DPF Server 2024.2.pre1'
+       - 'DPF Server 2024.2.pre0'
+       - 'Ansys 2024 R1'
+       - 'DPF Server 2024.1.pre0'
+       - 'Ansys 2023 R2'
+       - 'DPF Server 2023.2.pre1'
+       - 'DPF Server 2023.2.pre0'
+       - 'Ansys 2023 R1'
+       - 'Ansys 2022 R2'
+       - 'Ansys 2022 R1'
+       - 'Ansys 2021 R2'
+       - 'Ansys 2021 R1'
+    validations:
+      required: true
 
   - type: dropdown
     id: python-version
     attributes:
-      label: Which Python version are you using?
+      label: Which Python version causes the issue?
       description: Run `python --version` to verify your Python version
-      multiple: false
+      multiple: true
       options:
        - '3.7'
        - '3.8'
        - '3.9'
        - '3.10'
+       - '3.11'
+       - '3.12'
+       - '3.13'
     validations:
       required: true
 
@@ -73,7 +99,7 @@ body:
     id: installed-packages
     attributes:
       label: Installed packages
-      description: Run `python -m pip freeze` to list installed packages
-      placeholder: Paste the output of `python -m pip freeze` here
+      description: Run `python -m pip list` to list installed packages
+      placeholder: Paste the output of `python -m pip list` here
     validations:
       required: true

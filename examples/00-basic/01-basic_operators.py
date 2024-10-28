@@ -1,3 +1,26 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# noqa: D400
 """
 .. _ref_basic_operators_example:
 
@@ -14,16 +37,16 @@ For a list of all operators, see :ref:`ref_dpf_operators_reference`.
 This example demonstrates how to work directly with operators and
 compares this method to a wrapped approach.
 
-Import the necessary modules:
 """
 
+# Import the necessary modules
 from ansys.dpf import core as dpf
 from ansys.dpf.core import examples
 
 ###############################################################################
 # Create a model object to establish a connection with an
 # example result file:
-model = dpf.Model(examples.static_rst)
+model = dpf.Model(examples.find_static_rst())
 print(model)
 
 ###############################################################################
@@ -48,12 +71,12 @@ print(disp_op.outputs)
 # Connect to the data sources of the model.
 disp_op.inputs.data_sources.connect(model.metadata.data_sources)
 
-# Create a field container norm operator and connect it to the
+# Create a fields container norm operator and connect it to the
 # displacement operator to chain the operators.
 norm_op = dpf.Operator("norm_fc")
 norm_op.inputs.connect(disp_op.outputs)
 
-# Create a field container min/max operator and connect it to the
+# Create a fields container min/max operator and connect it to the
 # output of the norm operator.
 mm_op = dpf.Operator("min_max_fc")
 mm_op.inputs.connect(norm_op.outputs)
@@ -102,8 +125,8 @@ print(model.metadata.meshed_region.plot(disp_op.outputs.fields_container()))
 ###############################################################################
 # Instead of using a ``model`` class instance, use a
 # ``DdataSources`` object directly. The ``DataSources`` constructor input is a path.
-ds = dpf.DataSources(examples.static_rst)
-print(examples.static_rst)
+ds = dpf.DataSources(examples.find_static_rst())
+print(examples.find_static_rst())
 
 ###############################################################################
 # Instantiate the operators and connect them:

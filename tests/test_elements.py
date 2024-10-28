@@ -1,3 +1,25 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import pytest
 
 from ansys.dpf import core as dpf
@@ -37,18 +59,18 @@ def line_element_descriptor(model_elements):
 
 
 def check_element_attributes(
-        descriptor,
-        enum_id,
-        description,
-        name,
-        shape,
-        n_corner_nodes,
-        n_mid_nodes,
-        n_nodes,
-        is_solid,
-        is_shell,
-        is_beam,
-        is_quadratic,
+    descriptor,
+    enum_id,
+    description,
+    name,
+    shape,
+    n_corner_nodes,
+    n_mid_nodes,
+    n_nodes,
+    is_solid,
+    is_shell,
+    is_beam,
+    is_quadratic,
 ):
     assert isinstance(descriptor, dpf.ElementDescriptor)
     assert descriptor.enum_id.value == enum_id
@@ -136,12 +158,10 @@ def test_no_element_descriptor():
     # descriptor = dpf.element_types.descriptor(89)
     # assert not descriptor
     descriptor = dpf.element_types.descriptor(dpf.element_types.General)
-    print(descriptor)
+    # print(descriptor)
     unknown_shape = "unknown_shape"
     assert descriptor.shape == unknown_shape
-    assert (
-            dpf.element_types.descriptor(dpf.element_types.General).shape == unknown_shape
-    )
+    assert dpf.element_types.descriptor(dpf.element_types.General).shape == unknown_shape
 
 
 def test_descriptor_with_int_value():
@@ -164,18 +184,18 @@ def test_descriptor_with_int_value():
 
 
 def check_from_enum_id(
-        hardcoded_id,
-        enum_id,
-        description,
-        name,
-        shape,
-        n_corner_nodes,
-        n_mid_nodes,
-        n_nodes,
-        is_solid,
-        is_shell,
-        is_beam,
-        is_quadratic,
+    hardcoded_id,
+    enum_id,
+    description,
+    name,
+    shape,
+    n_corner_nodes,
+    n_mid_nodes,
+    n_nodes,
+    is_solid,
+    is_shell,
+    is_beam,
+    is_quadratic,
 ):
     des = dpf.element_types.descriptor(enum_id)
     assert hardcoded_id == enum_id.value

@@ -1,5 +1,5 @@
-packaging==21.3
-psutil==5.9.2
-tqdm==4.64.1
-numpy==1.23.3
-ansys-dpf-gate==0.2.1
+importlib-metadata==8.5.0
+numpy==2.1.2
+packaging==24.0
+psutil==6.1.0
+tqdm==4.66.1

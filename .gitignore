@@ -4,9 +4,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
-*.so
-
 # Distribution / packaging
 .Python
 build/
@@ -179,3 +176,19 @@ ansys/dpf/core/examples/_cache/
 
 # Visual studio code settings
 .vscode
+
+# dpf-standalone repository when installed locally
+dpf-standalone/
+
+
+# to be deleted
+
+search/
+
+# ansys-dpf-gate, ansys-grpc-dpf and ansys-dpg-gatebin
+src/ansys/dpf/gate/
+src/ansys/dpf/gatebin/
+src/ansys/grpc/
+
+# C extensions
+*.so

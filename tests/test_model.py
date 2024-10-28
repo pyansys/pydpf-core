@@ -1,3 +1,25 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import functools
 
 import numpy as np
@@ -7,7 +29,7 @@ from ansys import dpf
 from ansys.dpf.core import examples, misc
 from ansys.dpf.core.errors import ServerTypeError
 from conftest import SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_4_0
-
+from ansys.dpf.core.check_version import server_meet_version
 
 NO_PLOTTING = True
 
@@ -20,9 +42,9 @@ if misc.module_exists("pyvista"):
 @pytest.fixture()
 def static_model():
     try:
-        path = dpf.core.upload_file_in_tmp_folder(examples.static_rst)
+        path = dpf.core.upload_file_in_tmp_folder(examples.find_static_rst(return_local_path=True))
     except ServerTypeError:
-        path = examples.static_rst
+        path = examples.find_static_rst()
     return dpf.core.Model(path)
 
 
@@ -116,7 +138,7 @@ def test_iterate_results_model(allkindofcomplexity):
 
 
 def test_result_not_overrided(plate_msup):
-    model1 = dpf.core.Model(examples.electric_therm)
+    model1 = dpf.core.Model(examples.find_electric_therm())
     size = len(model1.results)
     model2 = dpf.core.Model(plate_msup)
     assert len(model1.results) == size
@@ -130,15 +152,13 @@ def test_result_displacement_model():
     assert len(results.displacement.on_all_time_freqs.eval()) == 45
     assert results.displacement.on_first_time_freq.eval().get_label_scoping().ids == [1]
     assert results.displacement.on_last_time_freq.eval().get_label_scoping().ids == [45]
-    assert len(results.displacement.split_by_body.eval()) == 32
+    if server_meet_version("9.0", model._server):
+        assert len(results.displacement.split_by_body.eval()) == 44
+    else:
+        assert len(results.displacement.split_by_body.eval()) == 32
     assert len(results.displacement.split_by_shape.eval()) == 4
-    assert (
-            len(results.displacement.on_named_selection("_FIXEDSU").eval()[0].scoping)
-            == 222
-    )
-    all_time_ns = results.displacement.on_named_selection(
-        "_FIXEDSU"
-    ).on_all_time_freqs.eval()
+    assert len(results.displacement.on_named_selection("_FIXEDSU").eval()[0].scoping) == 222
+    all_time_ns = results.displacement.on_named_selection("_FIXEDSU").on_all_time_freqs.eval()
     assert len(all_time_ns) == 45
     assert len(all_time_ns[0].scoping) == 222
     assert len(all_time_ns[19].scoping) == 222
@@ -151,7 +171,10 @@ def test_result_stress_model():
     assert len(results.stress.on_all_time_freqs.eval()) == 45
     assert results.stress.on_first_time_freq.eval().get_label_scoping().ids == [1]
     assert results.stress.on_last_time_freq.eval().get_label_scoping().ids == [45]
-    assert len(results.stress.split_by_body.eval()) == 32
+    if server_meet_version("9.0", model._server):
+        assert len(results.stress.split_by_body.eval()) == 44
+    else:
+        assert len(results.stress.split_by_body.eval()) == 32
     assert len(results.stress.split_by_shape.eval()) == 4
     assert len(results.stress.on_named_selection("_FIXEDSU").eval()[0].scoping) == 222
     all_time_ns = results.stress.on_named_selection("_FIXEDSU").on_all_time_freqs.eval()
@@ -170,11 +193,9 @@ def test_result_stress_location_model(plate_msup):
     model = dpf.core.Model(plate_msup)
     stress = model.results.stress
     fc = (
-        stress.on_mesh_scoping(
-            dpf.core.Scoping(ids=[1, 2], location=dpf.core.locations.elemental)
-        )
-            .on_location(dpf.core.locations.nodal)
-            .eval()
+        stress.on_mesh_scoping(dpf.core.Scoping(ids=[1, 2], location=dpf.core.locations.elemental))
+        .on_location(dpf.core.locations.nodal)
+        .eval()
     )
     assert fc[0].location == "Nodal"
 
@@ -186,15 +207,16 @@ def test_result_time_scoping(plate_msup):
     assert len(fc) == 4
     fc = stress.on_time_scoping([0.115, 0.125]).eval()
     assert len(fc) == 2
-    assert np.allclose(
-        fc.time_freq_support.time_frequencies.data, np.array([0.115, 0.125])
-    )
+    assert np.allclose(fc.time_freq_support.time_frequencies.data, np.array([0.115, 0.125]))
 
 
 def test_result_split_subset(allkindofcomplexity):
     model = dpf.core.Model(allkindofcomplexity)
     vol = model.results.elemental_volume
-    assert len(vol.split_by_body.eval()) == 11
+    if server_meet_version("9.0", model._server):
+        assert len(vol.split_by_body.eval()) == 13
+    else:
+        assert len(vol.split_by_body.eval()) == 11
     assert len(vol.split_by_body.eval()[0].scoping) == 105
     assert len(vol.on_mesh_scoping([1, 2, 3, 10992]).split_by_body.eval()) == 2
     assert len(vol.eval()[0].scoping) == 3
@@ -210,16 +232,16 @@ def test_result_not_dynamic(plate_msup):
     assert len(fc) == 4
     fc = stress.on_time_scoping([0.115, 0.125]).eval()
     assert len(fc) == 2
-    assert np.allclose(
-        fc.time_freq_support.time_frequencies.data, np.array([0.115, 0.125])
-    )
+    assert np.allclose(fc.time_freq_support.time_frequencies.data, np.array([0.115, 0.125]))
     assert fc[0].unit == "Pa"
     dis = model.results.displacement().eval()
     dpf.core.settings.set_dynamic_available_results_capability(True)
 
 
-@pytest.mark.skipif(not SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_4_0,
-                    reason='Requires server version higher than 4.0')
+@pytest.mark.skipif(
+    not SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_4_0,
+    reason="Requires server version higher than 4.0",
+)
 def test_model_meshes_container(simple_bar):
     data_source = dpf.core.DataSources(simple_bar)
     model = dpf.core.Model(data_source)
@@ -227,14 +249,17 @@ def test_model_meshes_container(simple_bar):
     assert model.metadata.meshes_container[0].nodes.n_nodes == 3751
 
 
-@pytest.mark.skipif(not SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_4_0,
-                    reason='Requires server version higher than 4.0')
+@pytest.mark.skipif(
+    not SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_4_0,
+    reason="Requires server version higher than 4.0",
+)
 def test_model_meshes_provider(simple_bar):
     data_source = dpf.core.DataSources(simple_bar)
     model = dpf.core.Model(data_source)
     meshes = model.metadata.meshes_provider.eval()
     assert len(meshes) == 1
     assert meshes[0].nodes.n_nodes == 3751
+
 
 # @pytest.mark.skipif(NO_PLOTTING, reason="Requires system to support plotting")
 # def test_displacements_plot(static_model):

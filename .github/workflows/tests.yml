@@ -1,0 +1,374 @@
+name: tests
+
+on:
+# Can be called by the CI
+  workflow_call:
+    inputs:
+      python_versions:
+        required: false
+        type: string
+        default: '["3.9"]'
+      ANSYS_VERSION:
+        required: false
+        type: string
+        default: "251"
+      wheel:
+        required: false
+        type: string
+        default: false
+      wheelhouse:
+        required: false
+        type: string
+        default: false
+      DOCSTRING:
+        required: false
+        type: string
+        default: true
+      standalone_suffix:
+        description: "Suffix of the branch on standalone"
+        required: false
+        type: string
+        default: ''
+      test_any:
+        description: "Test the any version of the wheel"
+        required: false
+        type: string
+        default: false
+# Can be called manually
+  workflow_dispatch:
+    inputs:
+      python_versions:
+        description: "Python interpreters to test."
+        required: true
+        type: string
+        default: '["3.9", "3.10", "3.11"]'
+      ANSYS_VERSION:
+        description: "ANSYS version"
+        required: true
+        type: string
+        default: "251"
+      wheel:
+        description: "Generate a wheel"
+        required: false
+        type: string
+        default: 'false'
+      wheelhouse:
+        description: "Generate a wheelhouse"
+        required: false
+        type: string
+        default: 'false'
+      DOCSTRING:
+        description: "Whether to test docstrings"
+        required: false
+        type: string
+        default: 'true'
+      standalone_suffix:
+        description: "Suffix of the branch on standalone"
+        required: false
+        type: string
+        default: ''
+      test_any:
+        description: "Test the any version of the wheel"
+        required: false
+        type: string
+        default: 'false'
+
+env:
+  PACKAGE_NAME: ansys-dpf-core
+  MODULE: core
+
+jobs:
+  setup:
+    name: "Setup"
+    runs-on: ubuntu-latest
+    outputs:
+      python_versions: ${{ steps.set_array.outputs.python_versions }}
+    steps:
+      - id: set_array
+        run: |
+          echo "python_versions=${{ toJSON(inputs.python_versions) }}" >> $GITHUB_OUTPUT
+
+  tests:
+    name: "Tests"
+    needs: setup
+    timeout-minutes: 35
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJSON(needs.setup.outputs.python_versions) }}
+        os: ["windows-latest", "ubuntu-latest"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Set licensing if necessary"
+        if: inputs.ANSYS_VERSION > 231
+        shell: bash
+        run: |
+          echo "ANSYS_DPF_ACCEPT_LA=Y" >> $GITHUB_ENV
+          echo "ANSYSLMD_LICENSE_FILE=1055@${{ secrets.LICENSE_SERVER }}" >> $GITHUB_ENV      
+
+      - name: "Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: "Install requirements"
+        run: pip install -r requirements/requirements_build.txt
+
+      - name: "Build the wheel"
+        shell: bash
+        run: |
+          if [ ${{ inputs.test_any }} == 'true' ]; then
+              export platform="any" 
+          elif [ ${{ matrix.os }} == "ubuntu-latest" ]; then
+              export platform="manylinux_2_17"
+          else
+              export platform="win"
+          fi
+          python .ci/build_wheel.py -p $platform -w
+
+      - name: "Expose the wheel"
+        shell: bash
+        id: wheel
+        working-directory: dist
+        run: |
+          export name=`ls ansys_dpf_core*.whl`
+          echo ${name}
+          echo "wheel_name=${name[0]}" >> $GITHUB_OUTPUT
+
+      - name: "Upload wheel to artifacts"
+        if: (inputs.wheel == 'true') && !(inputs.test_any && (matrix.os == 'ubuntu-latest') )
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.wheel.outputs.wheel_name }}
+          path: dist/${{ steps.wheel.outputs.wheel_name }}
+
+      - name: "Define wheelhouse name"
+        if: inputs.wheelhouse == 'true'
+        shell: bash
+        id: wheelhouse
+        run: |
+          export wheel_name=${{ steps.wheel.outputs.wheel_name }}
+          export IFS='-'
+          read -a strarr <<< $wheel_name
+          export version="${strarr[1]}"
+          echo $version
+          export name=ansys-dpf-core-v${version}-wheelhouse-${{ runner.os }}-${{ matrix.python-version }}.zip
+          echo "name=${name}" >> "$GITHUB_OUTPUT"
+
+      - name: "Zip wheelhouse"
+        if: inputs.wheelhouse == 'true'
+        uses: vimtor/action-zip@v1.1
+        with:
+          files: dist
+          dest: ${{ steps.wheelhouse.outputs.name }}
+
+      - name: "Upload wheelhouse to artifacts"
+        if: inputs.wheelhouse == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.wheelhouse.outputs.name }}
+          path: ${{ steps.wheelhouse.outputs.name }}
+          retention-days: 7
+
+      - name: "Install package wheel"
+        shell: bash
+        run: |
+          pip install dist/${{ steps.wheel.outputs.wheel_name }}[plotting]
+
+      - name: "Install DPF"
+        id: set-server-path
+        uses: ansys/pydpf-actions/install-dpf-server@v2.3
+        with:
+          dpf-standalone-TOKEN: ${{secrets.DPF_PIPELINE}}
+          standalone_suffix: ${{ inputs.standalone_suffix }}
+          ANSYS_VERSION : ${{inputs.ANSYS_VERSION}}
+
+      - name: "Check licences of packages"
+        uses: ansys/pydpf-actions/check-licenses@v2.3
+
+      - name: "Test import"
+        shell: bash
+        working-directory: tests
+        run: python -c "from ansys.dpf import core"
+
+      - name: "Prepare Testing Environment"
+        uses: ansys/pydpf-actions/prepare_tests@v2.3
+        with:
+          DEBUG: true
+
+      - name: "List installed packages"
+        shell: bash
+        run: pip list
+
+      - name: "Test Docstrings"
+        if: (inputs.DOCSTRING == 'true') && !((inputs.test_any == 'true') && (matrix.os == 'ubuntu-latest'))
+        uses: ansys/pydpf-actions/test_docstrings@v2.3
+        with:
+          MODULE: ${{env.MODULE}}
+          PACKAGE_NAME: ${{env.PACKAGE_NAME}}
+          working-directory: src
+
+      - name: "Separate long Core tests"
+        shell: pwsh
+        run: |
+          .github\workflows\scripts\separate_long_core_tests.ps1
+
+      - name: "Set pytest arguments"
+        shell: bash
+        run: |
+          echo "COVERAGE=--cov=ansys.dpf.${{env.MODULE}} --cov-report=xml --cov-report=html --log-level=ERROR --cov-append" >> $GITHUB_ENV
+          echo "RERUNS=--reruns 2 --reruns-delay 1" >> $GITHUB_ENV
+
+      - name: "Test API"
+        shell: bash
+        working-directory: tests
+        run: |
+          pytest $DEBUG $COVERAGE $RERUNS --junitxml=junit/test-results.xml  .
+
+      - name: "Kill all servers"
+        uses: ansys/pydpf-actions/kill-dpf-servers@v2.3
+
+      - name: "Test API test_launcher"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 2
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=../tests/junit/test-results2.xml test_launcher/.
+
+      - name: "Kill all servers"
+        uses: ansys/pydpf-actions/kill-dpf-servers@v2.3
+
+      - name: "Test API test_server"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 5
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=../tests/junit/test-results3.xml test_server/.
+
+      - name: "Kill all servers"
+        uses: ansys/pydpf-actions/kill-dpf-servers@v2.3
+
+      - name: "Test API test_local_server"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 2
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=../tests/junit/test-results4.xml test_local_server/.
+
+      - name: "Kill all servers"
+        uses: ansys/pydpf-actions/kill-dpf-servers@v2.3
+
+      - name: "Test API test_multi_server"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 5
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=../tests/junit/test-results5.xml test_multi_server/.
+
+      - name: "Kill all servers"
+        uses: ansys/pydpf-actions/kill-dpf-servers@v2.3
+
+      - name: "Test API test_remote_workflow"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 4
+          max_attempts: 3
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=../tests/junit/test-results6.xml test_remote_workflow/.
+
+      - name: "Kill all servers"
+        uses: ansys/pydpf-actions/kill-dpf-servers@v2.3
+
+      - name: "Test API test_remote_operator"
+        shell: bash
+        working-directory: test_remote_operator
+        run: |
+          pytest $DEBUG $COVERAGE $RERUNS --junitxml=../tests/junit/test-results7.xml .
+
+      - name: "Kill all servers"
+        uses: ansys/pydpf-actions/kill-dpf-servers@v2.3
+
+      - name: "Test API test_workflow"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 3
+          max_attempts: 4
+          retry_wait_seconds: 15
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=../tests/junit/test-results8.xml test_workflow/.
+
+      - name: "Kill all servers"
+        uses: ansys/pydpf-actions/kill-dpf-servers@v2.3
+
+      - name: "Test API test_service"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 2
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=tests/junit/test-results9.xml test_service/.
+
+      - name: "Kill all servers"
+        uses: ansys/pydpf-actions/kill-dpf-servers@v2.3
+
+      - name: "Test API Entry"
+        shell: bash
+        working-directory: tests
+        run: |
+          cd entry
+          pytest $DEBUG $COVERAGE $RERUNS --junitxml=../junit/test-results10.xml  .
+        timeout-minutes: 30
+
+      - name: "Kill all servers"
+        uses: ansys/pydpf-actions/kill-dpf-servers@v2.3
+
+      - name: "Test API test_custom_type_field"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 2
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=../tests/junit/test-results11.xml test_custom_type_field/.
+
+      - name: "Kill all servers"
+        uses: ansys/pydpf-actions/kill-dpf-servers@v2.3
+
+      - name: "Test Operators"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 2
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=../tests/junit/test-results12.xml tests/operators/.
+
+      - name: "Kill all servers"
+        uses: ansys/pydpf-actions/kill-dpf-servers@v2.3
+
+      - name: "Upload Test Results"
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}_${{ matrix.python-version }}_${{ matrix.os }}_pytest_${{ inputs.ANSYS_VERSION }}${{ inputs.test_any == 'true' && '_any' || '' }}
+          path: tests/junit/test-results.xml
+
+      - name: "Upload coverage to Codecov"
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }} # required
+          name: ${{ env.PACKAGE_NAME }}_${{ matrix.python-version }}_${{ matrix.os }}_pytest_${{ inputs.ANSYS_VERSION }}${{ inputs.test_any == 'true' && '_any' || '' }}.xml
+          flags: ${{ inputs.ANSYS_VERSION }},${{ matrix.os }},${{ matrix.python-version }}${{ inputs.test_any == 'true' && ',any' || '' }}

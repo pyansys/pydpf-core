@@ -1,16 +1,41 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# noqa: D400
 """
 .. _ref_use_result_helpers:
 
 Use result helpers to load custom data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The ``Result`` class, which is an instance created by the ``Model``, gives
+
+The :class:`Result <ansys.dpf.core.results.Result>` class, which is an instance
+created by the :class:`Model <ansys.dpf.core.model.Model>`, gives
 access to helpers for requesting results on specific mesh and time scopings.
 With these helpers, working on a custom spatial and temporal subset of the
 model is straightforward.
 
-Import necessary modules:
 """
 
+# Import necessary modules
 from ansys.dpf import core as dpf
 from ansys.dpf.core import examples
 

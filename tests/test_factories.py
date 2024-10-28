@@ -1,3 +1,25 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import numpy as np
 import pytest
 
@@ -95,9 +117,7 @@ def test_over_time_freq_complex_fields_container_1():
     f2 = fields_factory.create_scalar_field(31)
     f1_im = fields_factory.create_scalar_field(25)
     f2_im = fields_factory.create_scalar_field(31)
-    fc = fields_container_factory.over_time_freq_complex_fields_container(
-        [f1, f2], [f1_im, f2_im]
-    )
+    fc = fields_container_factory.over_time_freq_complex_fields_container([f1, f2], [f1_im, f2_im])
     labels = fc.labels
     assert labels == ["complex", "time"]
     assert len(fc) == 4
@@ -273,7 +293,7 @@ def test_elemental_scoping():
 
 def test_named_selection_scoping(model_with_ns):
     model = Model(model_with_ns)
-    print(model.metadata.available_named_selections)
+    # print(model.metadata.available_named_selections)
     scop = mesh_scoping_factory.named_selection_scoping("SELECTION", model)
     assert scop is not None
     assert len(scop.ids) != 0

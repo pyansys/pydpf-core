@@ -1,13 +1,37 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# noqa: D400
 """
 .. _ref_basic_field_example:
 
 Field and field containers overview
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 In DPF, the field is the main simulation data container. During a numerical
-simulation, result data is defined by values associated to entities
+simulation, the result data is defined by values associated to entities
 (scoping). These entities are a subset of a model (support).
 
-Because field data is always associated to its scoping and support,
+Because the field data is always associated to its scoping and support,
 the field is a self-describing piece of data. A field is also
 defined by its parameters, such as dimensionality, unit, and location.
 For example, a field can describe any of the following:
@@ -28,9 +52,9 @@ indexed, just like a Python list. Operators applied to a fields
 container have each individual field operated on. Fields
 containers are outputs from operators.
 
-First, import necessary modules:
-
 """
+
+# First, import necessary modules
 import numpy as np
 
 from ansys.dpf import core as dpf
@@ -39,7 +63,7 @@ from ansys.dpf.core import examples
 ###############################################################################
 # Create a model object to establish a connection with an
 # example result file and then extract:
-model = dpf.Model(examples.static_rst)
+model = dpf.Model(examples.find_static_rst())
 print(model)
 
 ###############################################################################

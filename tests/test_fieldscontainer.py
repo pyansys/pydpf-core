@@ -1,3 +1,25 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import weakref
 
 import numpy as np
@@ -5,6 +27,7 @@ import pytest
 import os
 
 import conftest
+from ansys.dpf.core.check_version import server_meet_version
 from ansys.dpf import core as dpf
 from ansys.dpf.core import FieldsContainer, Field, TimeFreqSupport
 from ansys.dpf.core import errors as dpf_errors
@@ -29,6 +52,17 @@ def test_create_fields_container(server_type):
     assert fc._internal_obj is not None
 
 
+@pytest.mark.skipif(
+    not conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_8_0,
+    reason="Renaming collections is supported via gRPC starting server version 8.0",
+)
+def test_rename_fields_container(server_type):
+    fc = FieldsContainer(server=server_type)
+    assert fc.name is None
+    fc.name = "test"
+    assert fc.name == "test"
+
+
 def test_empty_index(server_type):
     fc = FieldsContainer(server=server_type)
     with pytest.raises(IndexError):
@@ -37,13 +71,16 @@ def test_empty_index(server_type):
 
 def test_createby_message_copy_fields_container(server_type_legacy_grpc):
     fc = FieldsContainer(server=server_type_legacy_grpc)
-    fields_container2 = FieldsContainer(fields_container=fc._internal_obj,
-                                        server=server_type_legacy_grpc)
+    fields_container2 = FieldsContainer(
+        fields_container=fc._internal_obj, server=server_type_legacy_grpc
+    )
     assert fc._internal_obj == fields_container2._internal_obj
 
 
-@pytest.mark.skipif(not conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_3_0,
-                    reason='Copying data is supported starting server version 3.0')
+@pytest.mark.skipif(
+    not conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_3_0,
+    reason="Copying data is supported starting server version 3.0",
+)
 def test_createbycopy_fields_container(server_type):
     fc = FieldsContainer(server=server_type)
     fields_container2 = FieldsContainer(fields_container=fc)
@@ -61,9 +98,7 @@ def test_set_get_field_fields_container(server_type):
         fieldid = fc.get_field({"time": i + 1, "complex": 0})._internal_obj
         assert fieldid != None
         assert fc.get_field(i)._internal_obj != None
-        assert (
-                fc.get_field_by_time_complex_ids(timeid=i + 1, complexid=0)._internal_obj != None
-        )
+        assert fc.get_field_by_time_complex_ids(timeid=i + 1, complexid=0)._internal_obj != None
         assert fc[i]._internal_obj != None
 
 
@@ -88,9 +123,7 @@ def test_set_get_field_fields_container_new_label(server_type):
     for i in range(0, 20):
         assert fc.get_field({"time": i + 1, "complex": 0})._internal_obj != None
         assert fc.get_field(i)._internal_obj != None
-        assert (
-                fc.get_field_by_time_complex_ids(timeid=i + 1, complexid=0)._internal_obj != None
-        )
+        assert fc.get_field_by_time_complex_ids(timeid=i + 1, complexid=0)._internal_obj != None
         assert fc[i]._internal_obj != None
         assert fc.get_label_space(i) == {"time": i + 1, "complex": 0}
     fc.add_label("shape")
@@ -147,6 +180,7 @@ def test_delete_fields_container(server_type):
     ref = weakref.ref(fc)
     fc = None
     import gc
+
     gc.collect()
     assert ref() is None
 
@@ -306,7 +340,7 @@ def test_collection_update_support():
     assert np.allclose(tfq.time_frequencies.data, tfq_check.time_frequencies.data)
 
 
-@pytest.mark.skipif(os.name == 'posix', reason="linux issue: SEGFAULT to investigate")
+@pytest.mark.skipif(os.name == "posix", reason="linux issue: SEGFAULT to investigate")
 def test_deep_copy_over_time_fields_container(velocity_acceleration):
     model = dpf.Model(velocity_acceleration)
     stress = model.results.stress(time_scoping=[1, 2, 3])
@@ -322,8 +356,10 @@ def test_deep_copy_over_time_fields_container(velocity_acceleration):
     assert tf.time_frequencies.scoping.ids == copy.time_frequencies.scoping.ids
 
 
-@pytest.mark.skipif(not conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_3_0,
-                    reason='Bug in server version lower than 3.0')
+@pytest.mark.skipif(
+    not conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_3_0,
+    reason="Bug in server version lower than 3.0",
+)
 def test_light_copy(server_type):
     fc = FieldsContainer(server=server_type)
     fc.labels = ["time"]
@@ -337,6 +373,7 @@ def test_light_copy(server_type):
     assert fc2[0] != None
 
 
+@pytest.mark.slow
 def test_el_shape_fc(allkindofcomplexity):
     model = dpf.Model(allkindofcomplexity)
     fc = model.results.stress.split_by_shape.eval()
@@ -347,17 +384,17 @@ def test_el_shape_fc(allkindofcomplexity):
     mesh = model.metadata.meshed_region
 
     f = fc.beam_field()
-    ids = f.scoping.ids[0:int(len(f.scoping)/4)]
+    ids = f.scoping.ids[0 : int(len(f.scoping) / 4)]
     for id in ids:
         assert mesh.elements.element_by_id(id).shape == "beam"
 
     f = fc.shell_field()
-    ids = f.scoping.ids[0:int(len(f.scoping)/10)]
+    ids = f.scoping.ids[0 : int(len(f.scoping) / 10)]
     for id in ids:
         assert mesh.elements.element_by_id(id).shape == "shell"
 
     f = fc.solid_field()
-    ids = f.scoping.ids[0:int(len(f.scoping)/10)]
+    ids = f.scoping.ids[0 : int(len(f.scoping) / 10)]
     for id in ids:
         assert mesh.elements.element_by_id(id).shape == "solid"
 
@@ -375,15 +412,15 @@ def test_el_shape_time_fc():
     mesh = model.metadata.meshed_region
 
     f = fc.beam_field(3)
-    for id in f.scoping.ids[0:int(len(f.scoping.ids)/3)]:
+    for id in f.scoping.ids[0 : int(len(f.scoping.ids) / 3)]:
         assert mesh.elements.element_by_id(id).shape == "beam"
 
     f = fc.shell_field(4)
-    for id in f.scoping.ids[0:int(len(f.scoping.ids)/10)]:
+    for id in f.scoping.ids[0 : int(len(f.scoping.ids) / 10)]:
         assert mesh.elements.element_by_id(id).shape == "shell"
 
     f = fc.solid_field(5)
-    for id in f.scoping.ids[0:int(len(f.scoping.ids)/10)]:
+    for id in f.scoping.ids[0 : int(len(f.scoping.ids) / 10)]:
         assert mesh.elements.element_by_id(id).shape == "solid"
 
 
@@ -392,10 +429,11 @@ def test_mat_time_fc():
     fc = model.results.stress.on_all_time_freqs.split_by_body.eval()
     assert isinstance(fc, BodyFieldsContainer)
     assert len(fc.get_fields_by_mat_id(45)) == 45
-    assert np.allclose(
-        fc.get_fields_by_mat_id(45)[0].data, fc.get_field_by_mat_id(45, 1).data
-    )
-    assert len(fc.get_mat_scoping().ids) == 32
+    assert np.allclose(fc.get_fields_by_mat_id(45)[0].data, fc.get_field_by_mat_id(45, 1).data)
+    if server_meet_version("9.0", model._server):
+        assert len(fc.get_mat_scoping().ids) == 44
+    else:
+        assert len(fc.get_mat_scoping().ids) == 32
 
 
 def test_add_operator_fields_container():
@@ -420,9 +458,7 @@ def test_add_operator_fields_container():
     out = add.outputs.fields_container()
     assert len(out) == 2
     assert np.allclose(out[0].scoping.ids, [1, 2])
-    assert np.allclose(
-        out[0].data, field.data + np.array([[0.0, 1.0, 2.0], [0.0, 1.0, 2.0]])
-    )
+    assert np.allclose(out[0].data, field.data + np.array([[0.0, 1.0, 2.0], [0.0, 1.0, 2.0]]))
 
     # fc + float
     add = fc + 1.0
@@ -504,5 +540,61 @@ def test_dot_operator_fields_container():
     assert np.allclose(out[0].data, -field.data)
 
 
-if __name__ == "__main__":
-    test_add_field_by_time_id()
+def test_fields_container_factory_with_dict():
+    field1 = dpf.Field()
+    field1.data = [1, 2, 3]
+    field2 = dpf.Field()
+    field2.data = [2, 3, 4]
+    fields_container = dpf.fields_container_factory.over_time_freq_fields_container(
+        fields={0.1: field1, 0.2: field2}
+    )
+
+    assert fields_container[0].unit == ""
+
+
+def test_fields_container_get_time_scoping(server_type, disp_fc):
+    freq_scoping = disp_fc.get_time_scoping()
+    assert freq_scoping.size == 1
+
+
+@conftest.raises_for_servers_version_under("5.0")
+def test_fields_container_set_tfsupport(server_type):
+    coll = dpf.FieldsContainer(server=server_type)
+    coll.labels = ["body", "time"]
+    tfq = TimeFreqSupport(server=server_type)
+    frequencies = fields_factory.create_scalar_field(3, server=server_type)
+    frequencies.append([1.0], 1)
+    tfq.time_frequencies = frequencies
+
+    gen_support = dpf.GenericSupport(name="body", server=server_type)
+    str_f = dpf.StringField(server=server_type)
+    str_f.append(["inlet"], 1)
+    gen_support.set_support_of_property("name", str_f)
+
+    coll.set_support("time", tfq)
+    coll.set_support("body", gen_support)
+
+    assert coll.get_support("time").available_field_supported_properties() == ["time_freqs"]
+    assert coll.get_support("body").available_string_field_supported_properties() == ["name"]
+    assert coll.get_support("body").string_field_support_by_property("name").data == ["inlet"]
+
+
+@pytest.mark.skipif(
+    not conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_7_0, reason="Available for servers >=7.0"
+)
+def test_fields_container_empty_tf_support(server_type):
+    fields_container = dpf.FieldsContainer(server=server_type)
+
+    assert fields_container.time_freq_support == None
+
+
+@conftest.raises_for_servers_version_under("9.0")
+def test_get_entries_indices_fields_container(server_type):
+    fc = FieldsContainer(server=server_type)
+    fc.labels = ["time", "complex"]
+    for i in range(0, 20):
+        mscop = {"time": i + 1, "complex": 0}
+        fc.add_field(mscop, Field(nentities=i + 10, server=server_type))
+    assert np.allclose(fc.get_entries_indices({"time": 1, "complex": 0}), [0])
+    assert np.allclose(fc.get_entries_indices({"time": 2}), [1])
+    assert np.allclose(fc.get_entries_indices({"complex": 0}), range(0, 20))

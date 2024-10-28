@@ -1,3 +1,25 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import sys
 from unittest.mock import create_autospec
 
@@ -6,16 +28,18 @@ import grpc
 import pytest
 
 from ansys.dpf.core import server_types
-from ansys.dpf.core.misc import __ansys_version__
 from ansys.dpf.core.server_factory import ServerFactory
+from conftest import running_docker
 
 
+@pytest.mark.skipif(running_docker, reason="not for Docker")
 def test_start_remote(monkeypatch):
     # Test for the Product Instance Management API integration
 
     # Start a local DPF server and create a mock PyPIM pretending it is starting it
     from ansys.dpf import core
     from ansys.dpf.core.server_factory import ServerConfig, CommunicationProtocols
+
     conf = ServerConfig(protocol=CommunicationProtocols.gRPC, legacy=True)
     local_server = core.start_local_server(as_global=False, config=conf)
     server_address = f"{local_server.ip}:{local_server.port}"
@@ -51,9 +75,7 @@ def test_start_remote(monkeypatch):
     assert mock_connect.called
 
     # It created a remote instance through PyPIM
-    mock_client.create_instance.assert_called_with(
-        product_name="dpf", product_version=__ansys_version__
-    )
+    mock_client.create_instance.assert_called_with(product_name="dpf", product_version=None)
 
     # It waited for this instance to be ready
     assert mock_instance.wait_for_ready.called

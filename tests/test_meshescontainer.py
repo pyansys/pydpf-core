@@ -1,3 +1,25 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 # -*- coding: utf-8 -*-
 
 import weakref
@@ -14,8 +36,8 @@ from ansys.dpf.core import MeshesContainer
 def dummy_mesh(server_type):
     """Returns a mesh"""
     mesh = dpf.core.MeshedRegion(server=server_type)
-    mesh.nodes.add_node(1, [0., 0., 0.])
-    mesh.nodes.add_node(2, [1., 1., 1.])
+    mesh.nodes.add_node(1, [0.0, 0.0, 0.0])
+    mesh.nodes.add_node(2, [1.0, 1.0, 1.0])
     mesh.elements.add_beam_element(1, [0, 1])
     return mesh
 
@@ -44,14 +66,16 @@ def test_empty_index():
 
 def test_createby_message_copy_meshes_container(server_type_legacy_grpc):
     mc = MeshesContainer(server=server_type_legacy_grpc)
-    meshes_container2 = MeshesContainer(meshes_container=mc._internal_obj,
-                                        server=server_type_legacy_grpc)
+    meshes_container2 = MeshesContainer(
+        meshes_container=mc._internal_obj, server=server_type_legacy_grpc
+    )
     assert mc._internal_obj == meshes_container2._internal_obj
 
 
-@pytest.mark.skipif(not conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_3_0,
-                    reason='Connecting data from different servers is '
-                           'supported starting server version 3.0')
+@pytest.mark.skipif(
+    not conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_3_0,
+    reason="Connecting data from different servers is " "supported starting server version 3.0",
+)
 def test_createbycopy_meshes_container(server_type):
     mc = MeshesContainer(server=server_type)
     meshes_container2 = MeshesContainer(meshes_container=mc)
@@ -106,6 +130,7 @@ def test_delete_meshes_container():
     ref = weakref.ref(mc)
     mc = None
     import gc
+
     gc.collect()
     assert ref() is None
 

@@ -1,9 +1,34 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# noqa: D400
 """
 .. _ref_results_over_space:
 
 Scope results over custom space domains
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The ``Result`` class, which are instances created by the ``Model``, give
+
+The :class:`Result <ansys.dpf.core.results.Result>` class, which are instances
+created by the :class:`Model <ansys.dpf.core.model.Model>`, give
 access to helpers for requesting results on specific mesh and time scopings.
 With these helpers, working on a spatial subset of the model is straightforward.
 In this example, different ways to choose the spatial subset to
@@ -90,7 +115,7 @@ print(model.metadata.available_named_selections)
 ###############################################################################
 # Get the ``mesh_scoping`` of a named selection:
 
-mesh_scoping = model.metadata.named_selection('_CM82')
+mesh_scoping = model.metadata.named_selection("_CM82")
 print(mesh_scoping)
 
 ###############################################################################
@@ -100,13 +125,13 @@ model.metadata.meshed_region.plot(volume)
 
 ###############################################################################
 # Equivalent to:
-volume = model.results.elemental_volume.on_named_selection('_CM82')
+volume = model.results.elemental_volume.on_named_selection("_CM82")
 
 ###############################################################################
 # Equivalent to:
 ns_provider = dpf.operators.scoping.on_named_selection(
     requested_location=dpf.locations.elemental,
-    named_selection_name='_CM82',
+    named_selection_name="_CM82",
     data_sources=model,
 )
 volume = model.results.elemental_volume(mesh_scoping=ns_provider).eval()
@@ -161,8 +186,8 @@ scopings_container.add_scoping(
 
 ###############################################################################
 elemental_stress = model.results.stress.on_location(dpf.locations.elemental)(
-    mesh_scoping=scopings_container) \
-    .eval()
+    mesh_scoping=scopings_container
+).eval()
 print(elemental_stress)
 
 for field in elemental_stress:

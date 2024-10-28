@@ -1,60 +1,90 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import numpy as np
 import pytest
+import conftest
 
 from ansys.dpf import core as dpf
 from ansys.dpf.core import examples, server_types, server
-from ansys.dpf.core.errors import ServerTypeError
 from ansys.dpf.core.server_factory import ServerConfig, CommunicationProtocols
 
+if conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_6_0:
+    dpf.set_default_server_context(dpf.AvailableServerContexts.entry)
 
-@pytest.fixture(scope="module", params=[
-    ServerConfig(protocol=CommunicationProtocols.gRPC, legacy=False)
-] if (isinstance(server._global_server(), server_types.InProcessServer)) else [
-    ServerConfig(protocol=CommunicationProtocols.gRPC, legacy=False),
-    ServerConfig(protocol=CommunicationProtocols.InProcess, legacy=False)] if \
-        isinstance(server._global_server(), server_types.GrpcServer) else [
-    ServerConfig(protocol=CommunicationProtocols.gRPC, legacy=True)
-])
+
+@pytest.fixture(
+    scope="module",
+    params=[ServerConfig(protocol=CommunicationProtocols.gRPC, legacy=False)]
+    if (isinstance(server._global_server(), server_types.InProcessServer))
+    else conftest.remove_none_available_config(
+        [
+            ServerConfig(protocol=CommunicationProtocols.gRPC, legacy=False),
+            ServerConfig(protocol=CommunicationProtocols.InProcess, legacy=False),
+        ],
+        ["gRPC", "inProcess"],
+    )[0]
+    if isinstance(server._global_server(), server_types.GrpcServer)
+    else [ServerConfig(protocol=CommunicationProtocols.gRPC, legacy=True)],
+)
 def other_remote_server(request):
     server = dpf.start_local_server(config=request.param, as_global=False)
-    if request.param == ServerConfig(
-            protocol=CommunicationProtocols.gRPC, legacy=False
-    ):
+    if request.param == ServerConfig(protocol=CommunicationProtocols.gRPC, legacy=False):
         dpf.settings.get_runtime_client_config(server).cache_enabled = False
     return server
 
 
+if conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_6_0:
+    dpf.server.shutdown_all_session_servers()
+    dpf.set_default_server_context(dpf.AvailableServerContexts.premium)
+
+
 @pytest.fixture()
 def static_models(local_server, other_remote_server):
-    try:
-        upload = dpf.upload_file_in_tmp_folder(examples.static_rst, server=other_remote_server)
-    except ServerTypeError:
-        upload = examples.static_rst
-    return (dpf.Model(upload, server=other_remote_server),
-            dpf.Model(examples.static_rst, server=local_server))
+    static_rst_path_local = examples.find_static_rst(server=local_server)
+    static_rst_path_remote = examples.find_static_rst(server=other_remote_server)
+    return (
+        dpf.Model(static_rst_path_remote, server=other_remote_server),
+        dpf.Model(static_rst_path_local, server=local_server),
+    )
 
 
 @pytest.fixture()
 def transient_models(local_server, other_remote_server):
-    try:
-        upload = dpf.upload_file_in_tmp_folder(examples.msup_transient, server=other_remote_server)
-    except ServerTypeError:
-        upload = examples.msup_transient
+    msup_transient_path_local = examples.find_msup_transient(server=local_server)
+    msup_transient_path_remote = examples.find_msup_transient(server=other_remote_server)
     return (
-        dpf.Model(upload, server=other_remote_server),
-        dpf.Model(examples.msup_transient, server=local_server),
+        dpf.Model(msup_transient_path_remote, server=other_remote_server),
+        dpf.Model(msup_transient_path_local, server=local_server),
     )
 
 
 @pytest.fixture()
 def cyc_models(local_server, other_remote_server):
-    try:
-        upload = dpf.upload_file_in_tmp_folder(examples.simple_cyclic, server=other_remote_server)
-    except ServerTypeError:
-        upload = examples.simple_cyclic
+    simple_cyclic_path_local = examples.find_simple_cyclic(server=local_server)
+    simple_cyclic_path_remote = examples.find_simple_cyclic(server=local_server)
     return (
-        dpf.Model(upload, server=other_remote_server),
-        dpf.Model(examples.simple_cyclic, server=local_server),
+        dpf.Model(simple_cyclic_path_remote, server=other_remote_server),
+        dpf.Model(simple_cyclic_path_local, server=local_server),
     )
 
 
@@ -70,9 +100,7 @@ def test_model_time_freq_multi_server(static_models):
     assert tf.time_frequencies.shape == tf2.time_frequencies.shape
     assert tf.time_frequencies.size == tf2.time_frequencies.size
     assert np.allclose(tf.time_frequencies.data, tf2.time_frequencies.data)
-    assert np.allclose(
-        tf.time_frequencies.scoping.ids, tf2.time_frequencies.scoping.ids
-    )
+    assert np.allclose(tf.time_frequencies.scoping.ids, tf2.time_frequencies.scoping.ids)
     assert tf.n_sets == tf2.n_sets
     assert tf.get_frequency(0, 0) == tf2.get_frequency(0, 0)
     assert tf.get_cumulative_index(0, 0) == tf2.get_cumulative_index(0, 0)
@@ -99,12 +127,8 @@ def test_model_mesh_multi_server(static_models):
     elements = mesh.elements
     elements2 = mesh2.elements
     assert np.allclose(elements.scoping.ids, elements2.scoping.ids)
-    assert np.allclose(
-        elements.element_types_field.data, elements2.element_types_field.data
-    )
-    assert np.allclose(
-        elements.connectivities_field.data, elements2.connectivities_field.data
-    )
+    assert np.allclose(elements.element_types_field.data, elements2.element_types_field.data)
+    assert np.allclose(elements.connectivities_field.data, elements2.connectivities_field.data)
     assert np.allclose(elements.materials_field.data, elements2.materials_field.data)
     assert elements.n_elements == elements2.n_elements
     assert elements.has_shell_elements == elements2.has_shell_elements
@@ -148,24 +172,22 @@ def test_model_cyc_support_multi_server(cyc_models):
     assert cyc_support.num_sectors() == cyc_support2.num_sectors()
     assert np.allclose(cyc_support.base_nodes_scoping().ids, cyc_support2.base_nodes_scoping().ids)
     assert np.allclose(
-        cyc_support.base_elements_scoping().ids
-        , cyc_support2.base_elements_scoping().ids
+        cyc_support.base_elements_scoping().ids,
+        cyc_support2.base_elements_scoping().ids,
     )
     assert np.allclose(
-        cyc_support.sectors_set_for_expansion().ids
-        , cyc_support2.sectors_set_for_expansion().ids
+        cyc_support.sectors_set_for_expansion().ids,
+        cyc_support2.sectors_set_for_expansion().ids,
     )
     assert np.allclose(cyc_support.expand_node_id(1).ids, cyc_support2.expand_node_id(1).ids)
     assert np.allclose(cyc_support.expand_element_id(1).ids, cyc_support2.expand_element_id(1).ids)
     assert np.allclose(
-        cyc_support.expand_node_id(1, cyc_support.sectors_set_for_expansion()).ids
-        , cyc_support2.expand_node_id(1, cyc_support2.sectors_set_for_expansion()).ids
+        cyc_support.expand_node_id(1, cyc_support.sectors_set_for_expansion()).ids,
+        cyc_support2.expand_node_id(1, cyc_support2.sectors_set_for_expansion()).ids,
     )
     assert np.allclose(
-        cyc_support.expand_element_id(1, cyc_support.sectors_set_for_expansion())
-        .ids, cyc_support2.expand_element_id(1,
-                                             cyc_support2.sectors_set_for_expansion()
-                                             ).ids
+        cyc_support.expand_element_id(1, cyc_support.sectors_set_for_expansion()).ids,
+        cyc_support2.expand_element_id(1, cyc_support2.sectors_set_for_expansion()).ids,
     )
 
 
@@ -213,7 +235,5 @@ def test_model_stress_multi_server(transient_models):
     fc = disp.outputs.fields_container()
     fc2 = disp2.outputs.fields_container()
     check_fc(fc, fc2)
-    idenfc = dpf.operators.logic.identical_fc(
-        fc.deep_copy(fc2._server), fc2, server=fc2._server
-    )
+    idenfc = dpf.operators.logic.identical_fc(fc.deep_copy(fc2._server), fc2, server=fc2._server)
     assert idenfc.outputs.boolean()

@@ -1,0 +1,29 @@
+name: 🎓 Adding an example
+description: Proposing a new example for the library
+title: "Example proposal: ..."
+labels: ["example"]
+assignees: [""]
+
+body:
+
+  - type: textarea
+    id: example-description
+    attributes:
+      label: '📝 Description of the example'
+      placeholder: Describe what example you devised and why it is useful for the project.
+
+    validations:
+      required: true
+
+  - type: textarea
+    id: example-files
+    attributes:
+      label: '📁 Files needed for running the example'
+      placeholder: >
+        Drag and drop the files used in your example, together with the script employed.
+        Test the example files before uploading to ensure they at least run on your machine.
+        Add any additional comments/explanations that maintainers may need for running the example.
+        If you have issues uploading your files because of the file extension/type, upload them
+        as a .zip file.
+    validations:
+      required: true

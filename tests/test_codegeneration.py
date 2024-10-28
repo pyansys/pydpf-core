@@ -1,3 +1,25 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 # -*- coding: utf-8 -*-
 import os
 import copy
@@ -8,6 +30,7 @@ import numpy as np
 
 import ansys.dpf.core.operators as op
 from ansys.dpf import core
+from ansys.dpf.core import examples
 
 
 def test_workflowwithgeneratedcode(allkindofcomplexity):
@@ -131,6 +154,9 @@ def test_operator_any_input(allkindofcomplexity):
 
     # create a temporary file at the default temp directory
     path = os.path.join(tempfile.gettempdir(), "dpf_temp_ser.txt")
+    if not core.SERVER.local_server:
+        core.upload_file_in_tmp_folder(examples.find_static_rst(return_local_path=True))
+        path = core.path_utilities.join(core.make_tmp_dir_server(), "dpf_temp_ser.txt")
     serialization.inputs.file_path(path)
     serialization.run()
 
@@ -191,9 +217,7 @@ def test_create_op_in_chain(plate_msup):
     identical = op.logic.identical_fc(eqv2.outputs, eqv1.outputs)
     out = identical.outputs.boolean()
     assert out == True
-    identical = op.logic.identical_fc(
-        eqv2.outputs.fields_container, eqv1.outputs.fields_container
-    )
+    identical = op.logic.identical_fc(eqv2.outputs.fields_container, eqv1.outputs.fields_container)
     out = identical.outputs.boolean()
     assert out == True
 
@@ -240,9 +264,7 @@ def test_generated_operator_several_output_types(plate_msup):
     uc.inputs.unit_name("mm")
     f = uc.outputs.converted_entity_as_field()
     assert f.unit == "mm"
-    assert np.allclose(
-        f.data.flatten("C"), np.array([1, 2, 3, 4, 5, 6, 7, 8, 9]) * 1000
-    )
+    assert np.allclose(f.data.flatten("C"), np.array([1, 2, 3, 4, 5, 6, 7, 8, 9]) * 1000)
 
     model = core.Model(plate_msup)
     din = copy.deepcopy(model.metadata.meshed_region.nodes.coordinates_field.data)
@@ -286,16 +308,14 @@ def test_generated_operator_set_config():
     inpt2.unit = "m"
 
     conf = op.math.add.default_config()
-    print(conf)
+    # print(conf)
     conf.set_work_by_index_option(True)
     op1 = op.math.add(config=conf)
     op1.inputs.fieldA.connect(inpt)
     op1.inputs.fieldB.connect(inpt2)
     out = op1.outputs.field()
     assert np.allclose(out.scoping.ids, [1, 2, 3]) or np.allclose(out.scoping.ids, [3, 4, 5])
-    assert np.allclose(
-        out.data, np.array([[2.0, 4.0, 6.0], [8.0, 10.0, 12.0], [14.0, 16.0, 18.0]])
-    )
+    assert np.allclose(out.data, np.array([[2.0, 4.0, 6.0], [8.0, 10.0, 12.0], [14.0, 16.0, 18.0]]))
 
     conf.set_work_by_index_option(False)
     op1 = op.math.add(config=conf)

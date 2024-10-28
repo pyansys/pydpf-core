@@ -1,18 +1,34 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import numpy as np
 import pytest
 
 from ansys import dpf
 import conftest
+from conftest import SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_2_0
 import copy
 from ansys.dpf.core import Scoping
 from ansys.dpf.core import errors as dpf_errors
-from ansys.dpf.core.check_version import meets_version, get_server_version
-
-serv = dpf.core.start_local_server("127.0.0.1", 50075)
-SERVER_VERSION_HIGHER_THAN_2_0 = meets_version(get_server_version(serv), "2.1")
-
-
-# serv.shutdown()
 
 
 def test_create_scoping():
@@ -20,9 +36,10 @@ def test_create_scoping():
     assert scop._internal_obj
 
 
-@pytest.mark.skipif(not conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_3_0,
-                    reason='Copying data is '
-                           'supported starting server version 3.0')
+@pytest.mark.skipif(
+    not conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_3_0,
+    reason="Copying data is " "supported starting server version 3.0",
+)
 def test_createbycopy_scoping(server_type):
     scop = Scoping(server=server_type)
     scop2 = Scoping(scoping=scop, server=server_type)
@@ -30,8 +47,11 @@ def test_createbycopy_scoping(server_type):
 
 
 def test_create_scoping_with_ids_location(server_type):
-    scop = Scoping(ids=[1, 2, 3, 5, 8, 9, 10], location=dpf.core.locations.elemental,
-                   server=server_type)
+    scop = Scoping(
+        ids=[1, 2, 3, 5, 8, 9, 10],
+        location=dpf.core.locations.elemental,
+        server=server_type,
+    )
     assert scop._internal_obj
     assert np.allclose(scop.ids, [1, 2, 3, 5, 8, 9, 10])
     assert scop.location == dpf.core.locations.elemental
@@ -45,7 +65,8 @@ def test_set_get_ids_scoping(server_type):
 
 
 @pytest.mark.skipif(
-    not SERVER_VERSION_HIGHER_THAN_2_0, reason="Requires server version higher than 2.0"
+    not SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_2_0,
+    reason="Requires server version higher than 2.0",
 )
 def test_set_get_ids_long_scoping():
     scop = Scoping()
@@ -116,7 +137,8 @@ def test_print_scoping():
     scop = Scoping()
     ids = [1, 2, 3, 5, 8, 9, 10]
     scop.ids = ids
-    print(scop)
+    assert str(scop)
+
 
 def test_documentation_string_on_scoping(server_type):
     scop = Scoping(server=server_type)
@@ -127,6 +149,7 @@ def test_documentation_string_on_scoping(server_type):
     assert "location" in to_check
     assert "blabla" in to_check
     assert "7 entities" in to_check
+
 
 def test_iter_scoping(server_type):
     scop = Scoping(server=server_type)
@@ -143,8 +166,10 @@ def test_delete_scoping(server_type):
         scop.ids
 
 
-@pytest.mark.skipif(not conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_3_0,
-                    reason='Copying data is supported starting server version 3.0')
+@pytest.mark.skipif(
+    not conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_3_0,
+    reason="Copying data is supported starting server version 3.0",
+)
 def test_delete_auto_scoping(server_type):
     scop = Scoping(server=server_type)
     scop2 = Scoping(scoping=scop)
@@ -153,7 +178,7 @@ def test_delete_auto_scoping(server_type):
 
 
 @pytest.mark.skipif(
-    SERVER_VERSION_HIGHER_THAN_2_0,
+    SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_2_0,
     reason="Requires server version below (or equal) than 2.0",
 )
 def test_throw_if_unsufficient_version():
@@ -171,7 +196,8 @@ def test_throw_if_unsufficient_version():
 
 
 @pytest.mark.skipif(
-    not SERVER_VERSION_HIGHER_THAN_2_0, reason="Requires server version higher than 2.0"
+    not SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_2_0,
+    reason="Requires server version higher than 2.0",
 )
 def test_field_with_scoping_many_ids(allkindofcomplexity, server_type):
     # set scoping ids with a scoping created from a model
@@ -295,3 +321,17 @@ def test_mutable_ids_data(server_clayer):
     data = None
     changed_data = scop.ids
     assert np.allclose(changed_data[0], data_copy[0] + 2)
+
+
+def test_scoping_dont_start_server(server_type):
+    s = dpf.core.server._global_server()
+    dpf.core.SERVER = None
+    assert not dpf.core.server.has_local_server()
+    scop = Scoping(server=server_type)
+    assert not dpf.core.server.has_local_server()
+    ids = [1, 2, 3, 5, 8, 9, 10]
+    scop.ids = ids
+    scop = Scoping(scoping=scop)
+    assert not dpf.core.server.has_local_server()
+    assert np.allclose(scop.ids, ids)
+    dpf.core.SERVER = s

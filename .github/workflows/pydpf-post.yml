@@ -1,78 +1,167 @@
 name: PyDPF-Post testing
 
 on:
+# Can be called by the CI
+  workflow_call:
+    inputs:
+      post_branch:
+        default: ''
+        type: string
+      ANSYS_VERSION:
+        required: false
+        type: string
+        default: "251"
+      standalone_suffix:
+        description: "Suffix of the branch on standalone"
+        required: false
+        type: string
+        default: ''
+      test_docstrings:
+        description: "whether to run doctest"
+        required: false
+        type: string
+        default: "false"
+# Can be called manually
   workflow_dispatch:
     inputs:
-      PyDPF-Post_branch:
-        description: 'PyDPF-Post branch to test'
-        required: true
-        default: 'master'
+      post_branch:
+        description: 'PyDPF-Post branch or tag to test. Leave empty to get latest tagged version'
+        default: ''
         type: string
+      ANSYS_VERSION:
+        description: "ANSYS version"
+        required: true
+        type: string
+        default: "251"
+      standalone_suffix:
+        description: "Suffix of the branch on standalone"
+        required: false
+        type: string
+        default: ''
+      test_docstrings:
+        description: "whether to run doctest"
+        required: false
+        type: string
+        default: "false"
 
 env:
   PACKAGE_NAME: ansys-dpf-core
   MODULE: core
-  ANSYS_VERSION: 231
 
 jobs:
   Clone_and_Test:
     name: Clone and Test
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["windows-latest", "ubuntu-latest"]
+        python-version: ["3.9"]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
+      - name: "Set licensing if necessary"
+        if: inputs.ANSYS_VERSION > 231
+        shell: bash
+        run: |
+          echo "ANSYS_DPF_ACCEPT_LA=Y" >> $GITHUB_ENV
+          echo "ANSYSLMD_LICENSE_FILE=1055@${{ secrets.LICENSE_SERVER }}" >> $GITHUB_ENV
 
       - name: "Setup Python"
-        uses: actions/setup-python@v2.1.4
-        with:
-          python-version: "3.8"
-
-      - name: "Build Core Package"
-        uses: pyansys/pydpf-actions/build_package@v2.2.dev1
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          ANSYS_VERSION: ${{env.ANSYS_VERSION}}
-          PACKAGE_NAME: ${{env.PACKAGE_NAME}}
-          MODULE: ${{env.MODULE}}
+
+      - name: "Install ansys-dpf-core build requirements"
+        run: pip install -r requirements/requirements_build.txt
+
+      - name: "Build ansys-dpf-core wheel"
+        shell: bash
+        run: |
+          if [ ${{ matrix.os }} == "ubuntu-latest" ]; then
+              export platform="manylinux_2_17"
+          else
+              export platform="win"
+          fi
+          python .ci/build_wheel.py -p $platform -w
+
+      - name: "Expose ansys-dpf-core wheel"
+        shell: bash
+        id: wheel
+        working-directory: dist
+        run: |
+          export name=`ls ansys_dpf_core*.whl`
+          echo ${name}
+          echo "wheel_name=${name[0]}" >> $GITHUB_OUTPUT
+
+      - name: "Install ansys-dpf-core wheel"
+        shell: bash
+        run: |
+          pip install dist/${{ steps.wheel.outputs.wheel_name }}[plotting]
+
+      - name: "Install DPF"
+        id: set-server-path
+        uses: ansys/pydpf-actions/install-dpf-server@v2.3
+        with:
           dpf-standalone-TOKEN: ${{secrets.DPF_PIPELINE}}
-          install_extras: plotting
-          wheelhouse: false
-          extra-pip-args: ${{ env.extra }}
+          standalone_suffix: ${{ inputs.standalone_suffix }}
+          ANSYS_VERSION : ${{inputs.ANSYS_VERSION}}
+
+      - name: "Check licences of packages"
+        uses: ansys/pydpf-actions/check-licenses@v2.3
+
+      - name: "Test import"
+        shell: bash
+        working-directory: tests
+        run: python -c "from ansys.dpf import core"
 
       - name: "Clone PyDPF-Post"
+        shell: bash
         run: |
-          $BranchName = ${{ inputs.PyDPF-Post_branch }}
-          git clone --branch "$BranchName" --single-branch https://${{secrets.pydpf-post-TOKEN}}@github.com/pyansys/pydpf-post
-        shell: pwsh
+          REPO="https://github.com/ansys/pydpf-post.git"
+          BranchName=${{ inputs.post_branch }}
+          echo branch="$BranchName"
+          if [ "$BranchName" = '' ];
+          then
+              BranchName=$(git ls-remote --tags --refs $REPO | tail -n1 | cut -d/ -f3)
+          fi
+          echo branch=$BranchName
+          git clone --single-branch --branch "$BranchName" $REPO
 
       - name: "Install PyDPF-Post"
+        shell: bash
         run: |
-          cd pydpf-post/
+          cd pydpf-post
           pip install .
-        shell: pwsh
+          ls
 
       - name: "Prepare Testing Environment"
-        uses: pyansys/pydpf-actions/prepare_tests@v2.2.dev1
+        uses: ansys/pydpf-actions/prepare_tests@v2.3
         with:
           DEBUG: true
+          working-directory: pydpf-post
+
+      - name: "List installed packages"
+        shell: bash
+        run: pip list
 
       - name: "Test Docstrings"
-        uses: pyansys/pydpf-actions/test_docstrings@v2.2.dev1
+        uses: ansys/pydpf-actions/test_docstrings@v2.3
         with:
           MODULE: post
           PACKAGE_NAME: ansys-dpf-post
+          working-directory: pydpf-post/src
+        if: inputs.test_docstrings == 'true'
+        timeout-minutes: 10
 
       - name: "Test API"
         shell: bash
-        working-directory: tests
+        working-directory: pydpf-post/tests
         run: |
-          pytest $DEBUG --cov=ansys.dpf.post --cov-report=xml --cov-report=html --log-level=ERROR --junitxml=junit/test-results-post.xml --reruns 2 .
+          pytest $DEBUG --reruns 2 .
+        if: always()
+        timeout-minutes: 60
 
       - name: "Kill all servers"
-        uses: pyansys/pydpf-actions/kill-dpf-servers@v2.2.dev1
-
-      - name: "Upload Test Results"
-        uses: actions/upload-artifact@v2
-        with:
-          name: ansys-dpf-post_pytest
-          path: tests/junit/test-results-post.xml
+        uses: ansys/pydpf-actions/kill-dpf-servers@v2.3

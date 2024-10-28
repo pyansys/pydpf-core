@@ -1,3 +1,25 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import numpy as np
 import conftest
 
@@ -15,7 +37,6 @@ def test_scopingdata_string_field(server_type):
     pfield.scoping = scop
     list_data = ["water", "oil", "gaz", "paint", "air"]
     pfield.data = list_data
-    pfield.data
     assert pfield.data == list_data
     assert np.allclose(pfield.scoping.ids, list_ids)
     pfield.data = np.asarray(list_data)
@@ -26,7 +47,7 @@ def test_scopingdata_string_field(server_type):
 def test_set_get_data_string_field(server_type):
     field = dpf.core.StringField(nentities=20, server=server_type)
     data = []
-    for i in range(0, 20):
+    for _ in range(0, 20):
         data.append("bla")
     field.data = data
     assert field.data == data
@@ -81,7 +102,7 @@ def test_stream_large_data_string_field(server_type):
     nstring = 1000000
     field = dpf.core.StringField(nentities=nstring, server=server_type)
     data = []
-    for i in range(0, nstring):
+    for _ in range(0, nstring):
         data.append("bla")
     field.data = data
     assert field.data == data
@@ -91,23 +112,23 @@ def test_stream_large_data_string_field(server_type):
 def test_print_string_vector(server_type):
     field = dpf.core.StringField(nentities=20, server=server_type)
     data = []
-    for i in range(0, 20):
+    for _ in range(0, 20):
         data.append("bla")
     field.data = data
     d = field.data
-    print(d)
+    # print(d)
     assert "['bla', 'bla', 'bla'" in d.__str__()
     data = []
-    for i in range(0, 2):
+    for _ in range(0, 2):
         data.append("bla")
     field.data = data
     d = field.data
-    print(d)
+    # print(d)
     assert "['bla', 'bla']" in d.__str__()
     data = []
     field.data = data
     d = field.data
-    print(d)
+    # print(d)
     d.__str__()
 
 
@@ -116,7 +137,7 @@ def test_print_string_field(server_type):
     field = dpf.core.StringField(nentities=20, server=server_type)
     assert "String Field" in str(field)
     data = []
-    for i in range(0, 20):
+    for _ in range(0, 20):
         data.append("bla")
     field.data = data
     field.scoping.ids = range(1, 21)

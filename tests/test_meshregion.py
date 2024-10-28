@@ -1,15 +1,32 @@
+# Copyright (C) 2020 - 2024 ANSYS, Inc. and/or its affiliates.
+# SPDX-License-Identifier: MIT
+#
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import numpy as np
 import pytest
 import vtk
 
 from ansys import dpf
 import conftest
-
-from ansys.dpf.core.check_version import meets_version, get_server_version
-
-SERVER_VERSION_HIGHER_THAN_3_0 = meets_version(
-    get_server_version(dpf.core._global_server()), "3.0"
-)
+from ansys.dpf.core.check_version import server_meet_version
 
 
 @pytest.fixture()
@@ -71,7 +88,7 @@ def test_get_set_unit_meshedregion(simple_bar_model):
 def test_get_node_meshedregion(simple_bar_model):
     mesh = simple_bar_model.metadata.meshed_region
     node = mesh.nodes.node_by_index(1)
-    scop = mesh._get_scoping(dpf.core.locations.nodal)
+    scop = mesh.nodes.scoping
     assert node.id == scop.id(1)
     assert node.index == 1
 
@@ -104,6 +121,7 @@ def test_get_coordinates_field_meshedregion(simple_bar_model):
 
     coordinates = mesh.property_field(dpf.core.common.nodal_properties.coordinates)
     assert np.allclose(coordinates.data, field_coordinates.data)
+    assert np.all(coordinates.meshed_region.nodes.scoping.ids == mesh.nodes.scoping.ids)
 
 
 @conftest.raises_for_servers_version_under("3.0")
@@ -121,7 +139,15 @@ def test_set_coordinates_field_meshedregion(simple_bar_model):
     field_coordinates.data = new_data
     mesh.set_coordinates_field(field_coordinates)
     field_coordinates = mesh.nodes.coordinates_field
+    point_0 = list(mesh.grid.points[0])
     assert np.allclose(field_coordinates.data[0], [1.0, 1.0, 1.0])
+    assert np.allclose(point_0, [1.0, 1.0, 1.0])
+    field_coordinates.data = field_coordinates.data * 2.0
+    mesh.set_coordinates_field(field_coordinates)
+    field_coordinates = mesh.nodes.coordinates_field
+    point_1 = list(mesh.grid.points[0])
+    assert np.allclose(field_coordinates.data[0], [2.0, 2.0, 2.0])
+    assert np.allclose(point_1, [2.0, 2.0, 2.0])
 
 
 def test_get_element_types_field_meshedregion(simple_bar_model):
@@ -146,9 +172,7 @@ def test_set_element_types_field_meshedregion(simple_bar_model):
 
     new_data[0] = 1
     field_element_types.data = new_data
-    mesh.set_property_field(
-        dpf.core.common.elemental_properties.element_type, field_element_types
-    )
+    mesh.set_property_field(dpf.core.common.elemental_properties.element_type, field_element_types)
     field_element_types = mesh.elements.element_types_field
     assert field_element_types.data[0] == 1
 
@@ -192,9 +216,7 @@ def test_get_connectivities_field_meshedregion(simple_bar_model):
         field_connect.get_entity_data(1),
         [1053, 1062, 1143, 1134, 2492, 2491, 2482, 2483],
     )
-    connectivity = mesh.property_field(
-        dpf.core.common.elemental_properties.connectivity
-    )
+    connectivity = mesh.property_field(dpf.core.common.elemental_properties.connectivity)
     assert np.allclose(connectivity.data, field_connect.data)
 
 
@@ -212,9 +234,7 @@ def test_set_connectivities_field_meshed_region(simple_bar_model):
 
     new_connectivity_data[0] = 1
     connectivity.data = new_connectivity_data
-    mesh.set_property_field(
-        dpf.core.common.elemental_properties.connectivity, connectivity
-    )
+    mesh.set_property_field(dpf.core.common.elemental_properties.connectivity, connectivity)
     connectivity = mesh.elements.connectivities_field
     assert connectivity.data[0] == 1
 
@@ -307,7 +327,10 @@ def test_id_indeces_mapping_on_elements_2(allkindofcomplexity, server_type):
     mapping = mesh.elements.mapping_id_to_index
     elements = mesh.elements
     assert len(mapping) == len(elements)
-    assert len(elements) == 10292
+    if server_meet_version("9.0", mesh._server):
+        assert len(elements) == 10294
+    else:
+        assert len(elements) == 10292
     assert mapping[23] == 24
     assert mapping[4520] == 2011
 
@@ -368,14 +391,10 @@ def test_connectivity_meshed_region(server_type):
     assert np.allclose(nodal_conne.get_entity_data_by_id(1), [0])
     assert np.allclose(mesh.nodes.node_by_id(1).nodal_connectivity, [0])
 
-    mesh_nodal = mesh.property_field(
-        dpf.core.common.nodal_properties.nodal_connectivity
-    )
+    mesh_nodal = mesh.property_field(dpf.core.common.nodal_properties.nodal_connectivity)
     assert np.allclose(mesh_nodal.data, nodal_conne.data)
 
-    mesh_nodal = mesh.property_field(
-        dpf.core.common.nodal_properties.nodal_connectivity
-    )
+    mesh_nodal = mesh.property_field(dpf.core.common.nodal_properties.nodal_connectivity)
     assert np.allclose(mesh_nodal.data, nodal_conne.data)
 
 
@@ -553,46 +572,16 @@ def test_has_element_shape_meshed_region(server_type):
     assert mesh.elements.has_point_elements is True
 
 
+@pytest.mark.slow
 def test_mesh_deep_copy(allkindofcomplexity, server_type):
+    # Small mesh
     model = dpf.core.Model(allkindofcomplexity, server=server_type)
     mesh = model.metadata.meshed_region
     copy = mesh.deep_copy()
     assert np.allclose(copy.nodes.scoping.ids, mesh.nodes.scoping.ids)
     assert np.allclose(copy.elements.scoping.ids, mesh.elements.scoping.ids)
     assert copy.unit == mesh.unit
-    assert np.allclose(
-        copy.nodes.coordinates_field.data, mesh.nodes.coordinates_field.data
-    )
-    assert np.allclose(
-        copy.elements.element_types_field.data, mesh.elements.element_types_field.data
-    )
-    assert np.allclose(
-        copy.elements.connectivities_field.data, mesh.elements.connectivities_field.data
-    )
-
-    assert np.allclose(
-        copy.nodes.coordinates_field.scoping.ids,
-        mesh.nodes.coordinates_field.scoping.ids,
-    )
-    assert np.allclose(
-        copy.elements.element_types_field.scoping.ids,
-        mesh.elements.element_types_field.scoping.ids,
-    )
-    assert np.allclose(
-        copy.elements.connectivities_field.scoping.ids,
-        mesh.elements.connectivities_field.scoping.ids,
-    )
-
-
-def test_mesh_deep_copy2(simple_bar_model, server_type):
-    mesh = simple_bar_model.metadata.meshed_region
-    copy = mesh.deep_copy()
-    assert np.allclose(copy.nodes.scoping.ids, mesh.nodes.scoping.ids)
-    assert np.allclose(copy.elements.scoping.ids, mesh.elements.scoping.ids)
-    assert copy.unit == mesh.unit
-    assert np.allclose(
-        copy.nodes.coordinates_field.data, mesh.nodes.coordinates_field.data
-    )
+    assert np.allclose(copy.nodes.coordinates_field.data, mesh.nodes.coordinates_field.data)
     assert np.allclose(
         copy.elements.element_types_field.data, mesh.elements.element_types_field.data
     )
@@ -615,16 +604,43 @@ def test_mesh_deep_copy2(simple_bar_model, server_type):
 
 
 @pytest.mark.skipif(
-    not conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_4_0,
-    reason="Bug in server version lower than 4.0",
+    not conftest.SERVERS_VERSION_GREATER_THAN_OR_EQUAL_TO_7_0,
+    reason="Available with CFF starting 7.0",
 )
-def test_semi_parabolic_meshed_region(server_type, allkindofcomplexity):
-    mesh = dpf.core.Model(
-        allkindofcomplexity, server=server_type
-    ).metadata.meshed_region
-    has_semi_par = False
-    el = mesh.elements[0]
-    assert dpf.core.element_types.descriptor(el.type).n_nodes != len(el.connectivity)
+def test_mesh_deep_copy_large(fluent_multiphase, server_type):
+    model = dpf.core.Model(fluent_multiphase(server=server_type), server=server_type)
+    mesh = model.metadata.meshed_region
+    copy = mesh.deep_copy()
+    assert np.allclose(copy.nodes.scoping.ids, mesh.nodes.scoping.ids)
+
+
+@pytest.mark.slow
+def test_mesh_deep_copy2(simple_bar_model, server_type):
+    mesh = simple_bar_model.metadata.meshed_region
+    copy = mesh.deep_copy()
+    assert np.allclose(copy.nodes.scoping.ids, mesh.nodes.scoping.ids)
+    assert np.allclose(copy.elements.scoping.ids, mesh.elements.scoping.ids)
+    assert copy.unit == mesh.unit
+    assert np.allclose(copy.nodes.coordinates_field.data, mesh.nodes.coordinates_field.data)
+    assert np.allclose(
+        copy.elements.element_types_field.data, mesh.elements.element_types_field.data
+    )
+    assert np.allclose(
+        copy.elements.connectivities_field.data, mesh.elements.connectivities_field.data
+    )
+
+    assert np.allclose(
+        copy.nodes.coordinates_field.scoping.ids,
+        mesh.nodes.coordinates_field.scoping.ids,
+    )
+    assert np.allclose(
+        copy.elements.element_types_field.scoping.ids,
+        mesh.elements.element_types_field.scoping.ids,
+    )
+    assert np.allclose(
+        copy.elements.connectivities_field.scoping.ids,
+        mesh.elements.connectivities_field.scoping.ids,
+    )
 
 
 @pytest.mark.skipif(
@@ -632,6 +648,8 @@ def test_semi_parabolic_meshed_region(server_type, allkindofcomplexity):
     reason="Bug in server version lower than 4.0",
 )
 def test_empty_mesh_get_scoping(server_type):
-    mesh = dpf.core.MeshedRegion()
-    assert mesh.nodes.scoping is None
-    assert mesh.elements.scoping is None
+    mesh = dpf.core.MeshedRegion(server=server_type)
+    okay = mesh.nodes.scoping is None or len(mesh.nodes.scoping) == 0
+    assert okay
+    okay = mesh.elements.scoping is None or len(mesh.elements.scoping) == 0
+    assert okay

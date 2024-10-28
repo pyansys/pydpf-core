@@ -1,0 +1,228 @@
+name: test_docker
+
+on:
+# Can be called by the CI
+  workflow_call:
+    inputs:
+      standalone_suffix:
+        description: "Suffix of the branch on standalone"
+        required: false
+        type: string
+        default: ''
+      ANSYS_VERSION:
+        required: false
+        type: string
+        default: "251"
+# Can be called manually
+  workflow_dispatch:
+    inputs:
+      standalone_suffix:
+        description: "Suffix of the branch on standalone"
+        required: false
+        type: string
+        default: ''
+      ANSYS_VERSION:
+        description: "ANSYS version to run."
+        required: true
+        type: string
+        default: "251"
+
+env:
+  PACKAGE_NAME: ansys-dpf-core
+  MODULE: core
+  ANSYS_DPF_ACCEPT_LA: Y
+  ANSYSLMD_LICENSE_FILE: 1055@${{secrets.LICENSE_SERVER}}
+
+jobs:
+  docker_tests:
+    name: "Build and Test On Docker"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9"]
+        os: ["ubuntu-latest"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: "Install requirements"
+        run: pip install -r requirements/requirements_build.txt
+
+      - name: "Build the wheel"
+        shell: bash
+        run: |
+          if [ ${{ matrix.os }} == "ubuntu-latest" ]; then
+              export platform="manylinux_2_17"
+          else
+              export platform="win"
+          fi
+          python .ci/build_wheel.py -p $platform -w
+
+      - name: "Expose the wheel"
+        shell: bash
+        id: wheel
+        working-directory: dist
+        run: |
+          export name=`ls ansys_dpf_core*.whl`
+          echo ${name}
+          echo "wheel_name=${name[0]}" >> $GITHUB_OUTPUT
+
+      - name: "Install package wheel"
+        shell: bash
+        run: |
+          pip install dist/${{ steps.wheel.outputs.wheel_name }}[plotting]
+
+      - name: "Install DPF"
+        id: set-server-path
+        uses: ansys/pydpf-actions/install-dpf-docker@v2.3
+        with:
+          dpf-standalone-TOKEN: ${{secrets.DPF_PIPELINE}}
+          standalone_suffix: ${{ inputs.standalone_suffix }}
+          ANSYS_VERSION : ${{inputs.ANSYS_VERSION}}
+
+      - name: "Check licences of packages"
+        uses: ansys/pydpf-actions/check-licenses@v2.3
+
+      - name: "Test import"
+        shell: bash
+        working-directory: tests
+        run: python -c "from ansys.dpf import core"
+
+      - name: "Prepare Testing Environment"
+        uses: ansys/pydpf-actions/prepare_tests@v2.3
+        with:
+          DEBUG: true
+
+      - name: "List installed packages"
+        shell: bash
+        run: pip list
+
+      - name: "Separate long Core tests"
+        shell: pwsh
+        run: |
+          .github\workflows\scripts\separate_long_core_tests.ps1
+
+      - name: "Set pytest arguments"
+        shell: bash
+        run: |
+          echo "COVERAGE=--cov=ansys.dpf.${{env.MODULE}} --cov-report=xml --cov-report=html --log-level=ERROR --cov-append" >> $GITHUB_ENV
+          echo "RERUNS=--reruns 2 --reruns-delay 1" >> $GITHUB_ENV
+
+      - name: "Test API"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=tests/junit/test-results.xml tests/.
+
+      - name: "Test API test_launcher"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 2
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=tests/junit/test-results2.xml test_launcher/.
+
+      - name: "Test API test_server"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 5
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=tests/junit/test-results3.xml test_server/.
+
+      - name: "Test API test_local_server"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 2
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=tests/junit/test-results4.xml test_local_server/.
+
+      - name: "Test API test_multi_server"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 5
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=tests/junit/test-results5.xml test_multi_server/.
+
+      - name: "Test API test_remote_workflow"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 2
+          max_attempts: 3
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=tests/junit/test-results6.xml test_remote_workflow/.
+
+      - name: "Test API test_remote_operator"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 2
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=tests/junit/test-results7.xml test_remote_operator/.
+
+      - name: "Test API test_workflow"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 3
+          max_attempts: 3
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=tests/junit/test-results8.xml test_workflow/.
+
+      - name: "Test API test_service"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 3
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=tests/junit/test-results9.xml test_service/.
+
+      - name: "Test Operators"
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 3
+          max_attempts: 2
+          shell: bash
+          command: |
+            pytest $DEBUG $COVERAGE $RERUNS --junitxml=../tests/junit/test-results12.xml tests/operators/.
+
+#      - name: "Test API Entry"
+#        shell: bash
+#        working-directory: tests
+#        run: |
+#          cd entry
+#          pytest $DEBUG $COVERAGE $RERUNS --junitxml=junit/test-results10.xml  .
+#        if: always()
+#        timeout-minutes: 10
+
+      - name: "Upload Test Results"
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}_${{ matrix.python-version }}_${{ matrix.os }}_pytest_${{ inputs.ANSYS_VERSION }}_docker
+          path: tests/junit/test-results.xml
+        timeout-minutes: 5
+
+      - name: "Upload coverage to Codecov"
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }} # required
+          name: ${{ env.PACKAGE_NAME }}_${{ matrix.python-version }}_${{ matrix.os }}_pytest_${{ inputs.ANSYS_VERSION }}_docker.xml
+          flags: docker,${{ inputs.ANSYS_VERSION }},${{ matrix.os }},${{ matrix.python-version }}
