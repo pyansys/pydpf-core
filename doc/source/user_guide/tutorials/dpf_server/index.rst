@@ -12,13 +12,15 @@ This tutorial explains how to manipulate DPF client-server architecture
     :margin: 2
 
     .. grid-item-card:: Switch between local and remote server
-       :link: ref_tutorials
+       :link: user_guide_server_types
        :link-type: ref
        :text-align: center
 
-       This tutorial
+       explains how to manipulate DPF client-server architecture
 
 .. toctree::
     :maxdepth: 2
     :hidden:
+
+    server_types.rst
 
