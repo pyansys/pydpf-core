@@ -1,10 +1,10 @@
 import os
-import sys
 from glob import glob
 from datetime import datetime
 
 import numpy as np
 import pyvista
+import sphinx
 from ansys.dpf.core import __version__, server, server_factory
 from ansys.dpf.core.examples import get_example_required_minimum_dpf_version
 from ansys_sphinx_theme import ansys_favicon, get_version_match, pyansys_logo_light_mode, pyansys_logo_dark_mode
@@ -62,6 +62,9 @@ for example in glob(r"../../examples/**/*.py"):
         ignored_pattern += f"|{example_name}"
 ignored_pattern += "|11-server_types.py"
 ignored_pattern += "|06-distributed_stress_averaging.py"
+# ignored_pattern += "|00-wrapping_numpy_capabilities.py"
+# ignored_pattern += "|01-package_python_operators.py"
+ignored_pattern += "|02-python_operators_with_dependencies.py"
 ignored_pattern += r")"
 
 # -- General configuration ---------------------------------------------------
@@ -155,7 +158,7 @@ def reset_servers(gallery_conf, fname, when):
         try:
             # check whether the process name matches
             if proc_name in proc.name():
-                # proc.kill()
+                proc.kill()
                 nb_procs += 1
         except psutil.NoSuchProcess:
             pass
@@ -323,3 +326,37 @@ epub_title = project
 
 # A list of files that should not be packed into the epub file.
 epub_exclude_files = ["search.html"]
+
+
+def close_live_servers_and_processes(app: sphinx.application.Sphinx) -> None:
+    # Adapted from reset_servers() function, so this can be called after
+    # sphinx gallery finishes execution
+    import psutil
+    from ansys.dpf.core import server
+    import gc
+
+    gc.collect()
+    server.shutdown_all_session_servers()
+
+    proc_name = "Ans.Dpf.Grpc"
+    nb_procs = 0
+    for proc in psutil.process_iter():
+        try:
+            # check whether the process name matches
+            if proc_name in proc.name():
+                proc.kill()
+                nb_procs += 1
+        except psutil.NoSuchProcess:
+            pass
+
+def setup(app: sphinx.application.Sphinx) -> None:
+    """
+    Run hook function(s) during the documentation build.
+
+    Parameters
+    ----------
+    app : sphinx.application.Sphinx
+        Sphinx application instance containing the all the doc build configuration.
+    """
+
+    app.connect("builder-inited", close_live_servers_and_processes)
