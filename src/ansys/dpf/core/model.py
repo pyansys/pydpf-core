@@ -24,7 +24,7 @@
 .. _ref_model:
 
 Model
-=====
+
 Module contains the Model class to manage file result models.
 
 
@@ -105,7 +105,7 @@ class Model:
 
         >>> meshed_region = model.metadata.meshed_region
         >>> meshed_region.elements.scoping.ids[2]
-        759
+        np.int32(759)
 
         Get the data sources of the model.
 
