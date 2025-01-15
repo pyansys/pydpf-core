@@ -1,0 +1,171 @@
+
+
+
+
+
+
+:class:`InputsElementalMeanFc`
+==============================
+
+.. py:class:: ansys.dpf.core.operators.averaging.elemental_mean_fc.InputsElementalMeanFc(op: ansys.dpf.core.dpf_operator.Operator)
+
+   Bases: :py:obj:`ansys.dpf.core.inputs._Inputs`
+
+
+   Intermediate class used to connect user inputs to
+   elemental_mean_fc operator.
+
+   .. rubric:: Examples
+
+   >>> from ansys.dpf import core as dpf
+   >>> op = dpf.operators.averaging.elemental_mean_fc()
+   >>> my_fields_container = dpf.FieldsContainer()
+   >>> op.inputs.fields_container.connect(my_fields_container)
+   >>> my_collapse_shell_layers = bool()
+   >>> op.inputs.collapse_shell_layers.connect(my_collapse_shell_layers)
+   >>> my_force_averaging = bool()
+   >>> op.inputs.force_averaging.connect(my_force_averaging)
+   >>> my_scoping = dpf.Scoping()
+   >>> op.inputs.scoping.connect(my_scoping)
+   >>> my_abstract_meshed_region = dpf.MeshedRegion()
+   >>> op.inputs.abstract_meshed_region.connect(my_abstract_meshed_region)
+
+
+
+.. py:currentmodule:: InputsElementalMeanFc
+
+Overview
+--------
+
+.. tab-set::
+
+
+
+
+   .. tab-item:: Properties
+
+      .. list-table::
+          :header-rows: 0
+          :widths: auto
+
+          * - :py:attr:`~fields_container`
+            - Allows to connect fields_container input to the operator.
+          * - :py:attr:`~collapse_shell_layers`
+            - Allows to connect collapse_shell_layers input to the operator.
+          * - :py:attr:`~force_averaging`
+            - Allows to connect force_averaging input to the operator.
+          * - :py:attr:`~scoping`
+            - Allows to connect scoping input to the operator.
+          * - :py:attr:`~abstract_meshed_region`
+            - Allows to connect abstract_meshed_region input to the operator.
+
+
+
+
+
+
+
+Import detail
+-------------
+
+.. code-block:: python
+
+    from ansys.dpf.core.operators.averaging.elemental_mean_fc import InputsElementalMeanFc
+
+Property detail
+---------------
+
+.. py:property:: fields_container
+
+   Allows to connect fields_container input to the operator.
+
+   :param my_fields_container:
+   :type my_fields_container: FieldsContainer
+
+   .. rubric:: Examples
+
+   >>> from ansys.dpf import core as dpf
+   >>> op = dpf.operators.averaging.elemental_mean_fc()
+   >>> op.inputs.fields_container.connect(my_fields_container)
+   >>> # or
+   >>> op.inputs.fields_container(my_fields_container)
+
+.. py:property:: collapse_shell_layers
+
+   Allows to connect collapse_shell_layers input to the operator.
+
+   If true, shell layers are averaged as well
+   (default is false).
+
+   :param my_collapse_shell_layers:
+   :type my_collapse_shell_layers: bool
+
+   .. rubric:: Examples
+
+   >>> from ansys.dpf import core as dpf
+   >>> op = dpf.operators.averaging.elemental_mean_fc()
+   >>> op.inputs.collapse_shell_layers.connect(my_collapse_shell_layers)
+   >>> # or
+   >>> op.inputs.collapse_shell_layers(my_collapse_shell_layers)
+
+.. py:property:: force_averaging
+
+   Allows to connect force_averaging input to the operator.
+
+   If true you average, if false you just sum.
+
+   :param my_force_averaging:
+   :type my_force_averaging: bool
+
+   .. rubric:: Examples
+
+   >>> from ansys.dpf import core as dpf
+   >>> op = dpf.operators.averaging.elemental_mean_fc()
+   >>> op.inputs.force_averaging.connect(my_force_averaging)
+   >>> # or
+   >>> op.inputs.force_averaging(my_force_averaging)
+
+.. py:property:: scoping
+
+   Allows to connect scoping input to the operator.
+
+   Average only on these elements. if it is a
+   scoping container, the label must
+   correspond to the one of the fields
+   containers.
+
+   :param my_scoping:
+   :type my_scoping: Scoping
+
+   .. rubric:: Examples
+
+   >>> from ansys.dpf import core as dpf
+   >>> op = dpf.operators.averaging.elemental_mean_fc()
+   >>> op.inputs.scoping.connect(my_scoping)
+   >>> # or
+   >>> op.inputs.scoping(my_scoping)
+
+.. py:property:: abstract_meshed_region
+
+   Allows to connect abstract_meshed_region input to the operator.
+
+   The mesh region in this pin is used to
+   perform the averaging. it is used if
+   there is no fields support.
+
+   :param my_abstract_meshed_region:
+   :type my_abstract_meshed_region: MeshedRegion
+
+   .. rubric:: Examples
+
+   >>> from ansys.dpf import core as dpf
+   >>> op = dpf.operators.averaging.elemental_mean_fc()
+   >>> op.inputs.abstract_meshed_region.connect(my_abstract_meshed_region)
+   >>> # or
+   >>> op.inputs.abstract_meshed_region(my_abstract_meshed_region)
+
+
+
+
+
+
