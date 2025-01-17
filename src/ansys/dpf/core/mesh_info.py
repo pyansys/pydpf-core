@@ -22,8 +22,13 @@
 
 """MeshInfo."""
 
+from __future__ import annotations
 from ansys.dpf.core import server as server_module
 from ansys.dpf.core.generic_data_container import GenericDataContainer
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ansys.dpf.core import PropertyField
 
 
 class MeshInfo:
@@ -143,7 +148,7 @@ class MeshInfo:
         mesh_info.generic_data_container = self._generic_data_container.deep_copy(server)
         return mesh_info
 
-    def get_property(self, property_name):
+    def get_property(self, property_name: str) -> PropertyField:
         """Get property with given name.
 
         Parameters
